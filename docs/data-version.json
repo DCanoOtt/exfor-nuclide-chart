@@ -1,0 +1,10 @@
+{
+  "source": "https://github.com/IAEA-NDS/exfor_master",
+  "commit": "939a14d7bba1ddce51975cb5e8711ce96b3b0871",
+  "data_date": "2026-10-20",
+  "built": "2026-10-26",
+  "builder": "build_nuclide_chart.py 1.0",
+  "nuclides": 553,
+  "data_sets": 53090,
+  "entries": 10223
+}

@@ -1,0 +1,69 @@
+# Rebuilds the page when the IAEA publishes new EXFOR master files.
+# Every Monday (and on demand: Actions > Update EXFOR data > Run workflow) it compares the commit stored in
+# docs/data-version.json with the current IAEA-NDS/exfor_master.  If they differ it downloads the master files
+# (shallow clone, about 1 GB), runs the tests, rebuilds docs/index.html, commits it and starts the Deploy workflow.
+# Needs, once: Settings > Actions > General > Workflow permissions = "Read and write permissions".
+name: Update EXFOR data
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild even if no new EXFOR data are found"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Is there a newer EXFOR release?
+        id: check
+        run: |
+          set +e
+          python build_nuclide_chart.py --check-remote
+          code=$?
+          set -e
+          if [ "$code" = "10" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "rebuild=yes" >> "$GITHUB_OUTPUT"
+          elif [ "$code" = "0" ]; then
+            echo "rebuild=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "The check itself failed (exit code $code)"; exit 1
+          fi
+
+      - name: Self-test
+        if: steps.check.outputs.rebuild == 'yes'
+        run: python tests/test_build.py
+
+      - name: Download EXFOR and rebuild the page
+        if: steps.check.outputs.rebuild == 'yes'
+        run: python build_nuclide_chart.py --download --master exfor_master --project-url "https://github.com/${{ github.repository }}"
+
+      - name: Commit and deploy
+        if: steps.check.outputs.rebuild == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html docs/data-version.json
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+          else
+            git commit -m "Rebuild with EXFOR master files of $(python -c "import json;print(json.load(open('docs/data-version.json'))['data_date'])")"
+            git push
+            gh workflow run pages.yml
+          fi

@@ -1,0 +1,965 @@
+<title>EXFOR Nuclide Chart</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a control column on the left and one canvas chart on the right; at phone width the controls stack above the chart.
+   Colour tokens: paper, ink, panel, line, accent (instrument blue). Type: IBM Plex Sans for controls, IBM Plex Mono for data. */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --fg:#14202e; --muted:#5a6878; --line:#d5dce5; --accent:#1c5fb0; --accent-fg:#ffffff;
+  --field:#f7f9fb; --focus:#1c5fb0; --shadow:0 1px 2px rgba(20,32,46,.06);
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1620; --panel:#17212d; --fg:#e6ecf3; --muted:#93a3b5; --line:#2b394a; --accent:#5aa2f0; --accent-fg:#06121f;
+  --field:#101923; --focus:#5aa2f0; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1620; --panel:#17212d; --fg:#e6ecf3; --muted:#93a3b5; --line:#2b394a; --accent:#5aa2f0; --accent-fg:#06121f;
+  --field:#101923; --focus:#5aa2f0; --shadow:none; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans);padding-block:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:20px;font-weight:600;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 14px;max-width:70ch}
+.app{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}}
+.controls{display:flex;flex-direction:column;gap:12px;min-width:0}
+fieldset{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:10px 12px 12px;margin:0;min-width:0;box-shadow:var(--shadow)}
+legend{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:0 4px}
+label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 3px}
+label.chk{display:flex;gap:8px;align-items:center;color:var(--fg);margin:6px 0 0;font-size:13.5px}
+select,input[type=number]{width:100%;font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:6px 8px;min-width:0}
+input[type=number]{font-family:var(--mono);font-size:13px}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.range{margin-top:8px}.range b{display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin-bottom:3px}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--field)}
+.seg button{flex:1;border:0;background:transparent;color:var(--fg);font:inherit;font-size:13px;padding:6px 4px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button.act{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:4px;padding:6px 10px;cursor:pointer}
+button.act:hover{border-color:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin:6px 0 0}
+.main{min-width:0;display:flex;flex-direction:column;gap:12px}
+.stage{position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel);box-shadow:var(--shadow)}
+#cv{display:block;width:100%;touch-action:pan-y;cursor:crosshair}
+.tip{position:absolute;pointer-events:none;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:6px 9px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.2);z-index:3;white-space:nowrap}
+.tip b{font-family:var(--mono)}
+.hint{border:1px solid var(--accent);background:var(--panel);border-radius:6px;padding:10px 12px;font-size:13.5px}
+.hint .btns{margin-top:8px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.stat{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:8px 10px;min-width:0}
+.stat span{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.stat strong{font:600 18px var(--mono);overflow-wrap:anywhere}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.cols{grid-template-columns:minmax(0,1fr)}}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:10px 12px;min-width:0;box-shadow:var(--shadow)}
+.card h2{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:3px 6px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+td.m{font-family:var(--mono)}
+tr.pick{cursor:pointer}tr.pick:hover{background:var(--field)}
+.scroll{overflow-x:auto;max-height:340px;overflow-y:auto}
+.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+.help{border:1px solid var(--line);background:var(--panel);border-radius:6px;margin:0 0 14px;box-shadow:var(--shadow)}
+.helphead{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line)}
+.helphead.foot2{border-bottom:0;border-top:1px solid var(--line);justify-content:flex-start}
+.helphead h2{margin:0;font-size:17px}
+.help .body{padding:0 14px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:4px 28px;max-width:1200px}
+.help h3{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+.help p,.help li{margin:3px 0;font-size:13.5px}
+.help ul{margin:0;padding-left:18px}
+.help dt{font-family:var(--mono);font-weight:600;font-size:13px;margin-top:5px}
+.help dd{margin:0 0 0 0;font-size:13.5px;color:var(--fg)}
+.ms{position:relative}
+.msbtn{width:100%;text-align:left;font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:6px 26px 6px 8px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative}
+.msbtn::after{content:"\25BE";position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.mspanel{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);padding:8px;min-width:240px}
+.mspanel input[type=search]{width:100%;font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:4px;padding:5px 8px;margin-bottom:6px}
+.mspanel .btns{margin-bottom:6px}
+.mslist{max-height:300px;overflow:auto}
+.mslist label.chk{margin:0;padding:3px 2px;font-size:13px;border-radius:3px}
+.mslist label.chk:hover{background:var(--field)}
+.mslist .cnt{margin-left:auto;font-family:var(--mono);color:var(--muted);font-size:12px}
+.mslist hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.reftools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.reftools select{width:auto}
+.refcard{grid-column:1/-1}.scroll.tall{max-height:520px}
+.ref{padding:7px 2px;border-bottom:1px solid var(--line)}.ref .l1{display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.ref .au{font-weight:600}.ref .yr{font-family:var(--mono);color:var(--muted)}.ref .cit{color:var(--fg)}
+.ref .ti{color:var(--muted);font-size:13px;margin-top:1px}.ref .meta{font-size:12px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
+.ref a{color:var(--accent)}
+.ref .subs{font-size:12.5px;font-family:var(--mono);margin-top:2px;line-height:1.6}
+.ref .part{color:var(--accent);font-family:var(--sans);font-weight:600;margin-left:6px}
+.foot{font-size:12px;color:var(--muted);max-width:90ch}
+.sr{position:absolute;left:-9999px}
+</style>
+
+<div class="top"><h1>EXFOR nuclide chart</h1><button class="act primary" type="button" id="showhelp" aria-controls="helpview">Instructions</button></div>
+<p class="sub">How many experimental data sets EXFOR holds for each target nuclide, for any neutron-induced reaction. Choose the reaction, the kind of data and the Z and A ranges; drag a box on the chart to zoom, click a nuclide for the details.</p>
+
+<div class="help" id="helpview" hidden>
+  <div class="helphead"><h2>How to use this chart</h2><button class="act primary" type="button" id="back">&larr; Back to the chart</button></div>
+  <div class="body">
+    <div>
+      <h3>What you see</h3>
+      <p>Each square is one target nuclide: neutron number N across, proton number Z up, element symbol at the left end of each row. The colour is the number of EXFOR items you chose to count for neutron-induced reactions on that target. Squares without data show the background colour. Projectiles other than neutrons are not included, and natural elements (A = 0) cannot be placed on a chart of nuclides.</p>
+      <h3>Reading and navigating</h3>
+      <ul>
+        <li><b>Hover</b> a square: nuclide, value, and the split of its data sets into SIG, RP and other.</li>
+        <li><b>Click</b> a square: all reactions of that nuclide in the panel below the chart; click a reaction there to switch the chart to it.</li>
+        <li><b>Drag a box</b> on the chart to zoom in; all text and numbers grow with the squares. <b>Whole chart</b> resets the ranges.</li>
+        <li>The table "Largest values in view" lists the 15 highest squares; click a row to select it.</li>
+        <li><b>Copy table (CSV)</b> copies the visible values (Z, element, A, N, value) to the clipboard.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Reaction and count</h3>
+      <dl>
+        <dt>Reaction</dt><dd>EXFOR process of the neutron-induced reaction: capture (n,γ), fission, elastic, inelastic, (n,p), (n,α), total, resonance parameters (n,0), and so on, or all of them together. The number after each name is its number of data sets.</dd>
+        <dt>Count</dt><dd><b>Data sets</b>: reaction records with a data table. <b>EXFOR entries</b>: distinct experiments (one entry can hold many data sets). <b>Data points</b>: rows of the tables. <b>RP resonances</b>: rows of resonance-parameter tables, counted for RP data sets only.</dd>
+      </dl>
+      <h3>Data filters</h3>
+      <dl>
+        <dt>Measurement method</dt><dd>All data, time-of-flight only (METHOD field contains TOF), or everything except time-of-flight.</dd>
+        <dt>Quantity</dt><dd>The first group of the list holds SIG, RP, RYL (reaction yield) and Other (everything else); below it come all quantity codes in alphabetical order. Tick one or several entries in the list; a data set is kept if it matches <b>any</b> ticked entry (for example SIG + RP + RYL), and nothing ticked means all quantities. There is a search box and an "All quantities" button. <b>SIG</b> cross sections. <b>RP</b> resonance parameters: resonance energies, spins J, orbital momenta L and widths (WID). RP are not stored as SIG. <b>Other</b> everything that is neither SIG nor RP (angular and energy distributions, yields, spectra, ratios, resonance integrals, strength functions...). Below these, any single EXFOR quantity code with its number of data sets.</dd>
+        <dt>Points per data set</dt><dd>Keep only data sets whose table has at least (and optionally at most) this number of rows. For RP tables this is the number of resonances. Use 20 or 100 to keep substantial measurements.</dd>
+        <dt>Publication year</dt><dd>First and last year of the main reference of each EXFOR entry (journal, conference or report year). Leave both empty for the complete period, or fill in one limit only. Entries whose reference has no usable year are left out while a period is set, unless you tick the box.</dd>
+        <dt>Neutron energy range</dt><dd>Lowest and highest incident-neutron energy of each data set, converted from the units of the table and compared in the unit you choose (eV, keV, MeV; MeV is the internal unit). You can fill in only one limit. "Overlaps" keeps data sets that touch the range, "lies inside" those entirely within it, "covers" those spanning all of it. Data sets without any incident-energy information (Maxwellian or spectrum averages, fission yields, spectra...) are left out while a range is set, unless you tick the box.</dd>
+      </dl>
+    </div>
+    <div>
+      <h3>Range</h3>
+      <p>Limits on Z, N and mass number A. They combine: a square is shown only if it satisfies all three. Zooming with the mouse fills in Z and N.</p>
+      <h3>Colours</h3>
+      <dl>
+        <dt>Palette</dt><dd>Spectrum, Turbo, Viridis, Plasma, cool-to-warm, Blues, Greens and Reds.</dd>
+        <dt>Maximum in black</dt><dd>The top colour is black (white on a black background), so the most heavily measured nuclides stand out. Untick it to keep the palette's own end colour.</dd>
+        <dt>Background</dt><dd>Colour of squares with no data: white, light grey or black.</dd>
+        <dt>Scale</dt><dd>Log gives low values their own colours (best for counts spanning orders of magnitude); square root and linear stress the large values. "Top of the scale" fixes the value that gets the last colour, to compare charts.</dd>
+      </dl>
+      <h3>Saving the picture</h3>
+      <p>"Save image" redraws the chart at the resolution you choose (96 to 1200 dpi) and offers it as PNG or JPEG. The picture has the on-screen layout, so zoom and choose the filters, palette and window size first. At 300 dpi a chart of 1000 px on screen becomes about 3125 px, with text and lines sharp. PNG files carry the dpi value in their metadata. The browser asks you to confirm the file name before saving; where direct saving is not offered, the image is shown below the button to save with a long-press or right-click.</p>
+      <h3>Display</h3>
+      <p>Radioactive nuclides carry a dashed diagonal pattern (stable ones are plain); the hover tooltip also says "stable" or "radioactive". A nuclide counts as stable when no decay has been observed; very long-lived ones such as 209Bi, 232Th, 235U and 238U are radioactive here. Numbers in the squares appear when they fit (or always/never). You can switch on element names, grid lines, the magic numbers 2, 8, 20, 28, 50, 82, 126 and lines of constant mass number.</p>
+    </div>
+    <div>
+      <h3>Glossary</h3>
+      <dl>
+        <dt>Data set</dt><dd>One reaction record with a data table in an EXFOR entry. Sums, ratios and other complex reactions are not included.</dd>
+        <dt>Entry</dt><dd>One EXFOR experiment (an accession number such as 23453) with a bibliography and one or more data sets.</dd>
+        <dt>SIG</dt><dd>Cross-section data set (EXFOR quantity code SIG).</dd>
+        <dt>RP</dt><dd>Resonance-parameter data set (codes EN in the (n,0) reaction, J, L, WID, WID/STR, WID/RED and related).</dd>
+        <dt>Reference list</dt><dd>After you click a nuclide, the References panel lists the publications (EXFOR entries) behind its data sets that pass the current filters and the chosen reaction: first author, year, journal or report, title, the EXFOR entry and subentry numbers (linked to the IAEA-NDS EXFOR web service) and how many data sets and points each contributes. Sort it or copy it as text.</dd>
+        <dt>TOF</dt><dd>Time-of-flight measurement, for example at n_TOF (CERN), GELINA or ORELA.</dd>
+        <dt>N, Z, A</dt><dd>Neutron, proton and mass number of the target.</dd>
+      </dl>
+      <h3>About, data licence and citation</h3>
+      <p>The numbers are computed from the EXFOR master files of the IAEA Nuclear Data Section (licence CC BY 4.0) when the page is built, and are embedded in this file: the page works offline. Please cite EXFOR (N. Otuka et al., Nucl. Data Sheets 120 (2014) 272) and state the data date shown in the footer. The footer links to the source code and the instructions for rebuilding the page with a newer EXFOR release.</p>
+      <h3>Good to know</h3>
+      <ul>
+        <li>Counts follow the EXFOR master files of <span class="mdate2"></span>, including superseded data sets.</li>
+        <li>"All reactions together" can count the same entry or points under several reaction types.</li>
+        <li>The point count of a data set is not clipped to the energy range.</li>
+        <li>If a count looks wrong, hover the square: the tooltip shows the split of its data sets, and the clicked-nuclide table shows all reactions with and without the current filters.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="helphead foot2"><button class="act primary" type="button" id="back2">&larr; Back to the chart</button></div>
+</div>
+
+<div class="app" id="appview">
+  <div class="controls">
+    <fieldset><legend>Reaction</legend>
+      <label for="rx">Neutron-induced reaction type</label>
+      <select id="rx"></select>
+      <label for="metric">Count</label>
+      <select id="metric">
+        <option value="d">Data sets</option>
+        <option value="e">EXFOR entries</option>
+        <option value="p">Data points</option>
+        <option value="r">RP resonances (rows of RP tables; counts RP data sets only)</option>
+      </select>
+    </fieldset>
+
+    <fieldset><legend>Data</legend>
+      <label for="meas">Measurement method</label>
+      <select id="meas">
+        <option value="all">All data</option>
+        <option value="tof">Time-of-flight only (METHOD TOF)</option>
+        <option value="notof">Everything except time-of-flight</option>
+      </select>
+      <label for="qbtn">Quantity: tick one or several (SIG = cross section, RP = resonance parameters)</label>
+      <div class="ms" id="qms">
+        <button type="button" id="qbtn" class="msbtn" aria-haspopup="true" aria-expanded="false">All quantities</button>
+        <div class="mspanel" id="qpanel" hidden>
+          <input type="search" id="qfind" placeholder="Find a quantity code" aria-label="Find a quantity code">
+          <div class="btns"><button type="button" class="act" id="qclear">All quantities</button><button type="button" class="act" id="qclose">Close</button></div>
+          <div id="qlist" class="mslist"></div>
+        </div>
+      </div>
+      <p class="note" id="qmsg" aria-live="polite"></p>
+      <div class="range"><b>Points per data set</b>
+        <div class="row2"><input id="pmin" type="number" min="1" step="1" value="1" aria-label="Minimum points per data set" placeholder="min"><input id="pmax" type="number" min="1" step="1" aria-label="Maximum points per data set" placeholder="max (none)"></div></div>
+      <div class="range"><b>Neutron energy range</b>
+        <div class="row2"><input id="emin" type="number" step="any" min="0" aria-label="Minimum neutron energy" placeholder="min"><input id="emax" type="number" step="any" min="0" aria-label="Maximum neutron energy" placeholder="max (none)"></div>
+        <div class="row2" style="margin-top:6px"><select id="eunit" aria-label="Energy unit"><option value="1e-6">eV</option><option value="1e-3">keV</option><option value="1" selected>MeV</option></select>
+          <select id="emode" aria-label="Energy match"><option value="ov">overlaps range</option><option value="in">lies inside range</option><option value="co">covers range</option></select></div>
+        <label class="chk"><input type="checkbox" id="eunk"> Also data sets with no energy information</label>
+        <p class="note" id="enote"></p></div>
+      <div class="range"><b>Publication year</b>
+        <div class="row2"><input id="ymin" type="number" step="1" aria-label="First publication year"><input id="ymax" type="number" step="1" aria-label="Last publication year"></div>
+        <label class="chk"><input type="checkbox" id="yunk"> Also entries without a year</label>
+        <p class="note" id="ynote"></p></div>
+      <p class="note">Only data sets with a number of points inside this range are counted. Try 20 or 100 to keep substantial measurements.</p>
+    </fieldset>
+
+    <fieldset><legend>Range</legend>
+      <div class="range"><b>Proton number Z</b>
+        <div class="row2"><input id="zmin" type="number" min="1" max="110" aria-label="Z minimum"><input id="zmax" type="number" min="1" max="110" aria-label="Z maximum"></div></div>
+      <div class="range"><b>Neutron number N</b>
+        <div class="row2"><input id="nmin" type="number" min="0" max="180" aria-label="N minimum"><input id="nmax" type="number" min="0" max="180" aria-label="N maximum"></div></div>
+      <div class="range"><b>Mass number A</b>
+        <div class="row2"><input id="amin" type="number" min="1" max="300" aria-label="A minimum"><input id="amax" type="number" min="1" max="300" aria-label="A maximum"></div></div>
+      <div class="btns" style="margin-top:10px"><button class="act" id="reset" type="button">Whole chart</button></div>
+    </fieldset>
+
+    <fieldset><legend>Colours</legend>
+      <label for="pal">Palette</label>
+      <select id="pal"></select>
+      <label for="bgc">Background (no data)</label>
+      <select id="bgc">
+        <option value="white">White</option>
+        <option value="grey">Light grey</option>
+        <option value="black">Black</option>
+      </select>
+      <label for="scale">Scale</label>
+      <div class="seg" id="scale" role="group" aria-label="Colour scale">
+        <button type="button" data-v="log" aria-pressed="true">Log</button>
+        <button type="button" data-v="sqrt" aria-pressed="false">Sqrt</button>
+        <button type="button" data-v="lin" aria-pressed="false">Linear</button>
+      </div>
+      <label for="vmax">Top of the scale (empty = largest value)</label>
+      <input id="vmax" type="number" min="2" step="1" placeholder="auto">
+      <label class="chk"><input type="checkbox" id="blk" checked> Maximum in black</label>
+    </fieldset>
+
+    <fieldset><legend>Save image</legend>
+      <label for="dpi">Resolution (dpi)</label>
+      <select id="dpi"><option>96</option><option>150</option><option selected>300</option><option>600</option><option>1200</option></select>
+      <label for="fmt">Format</label>
+      <select id="fmt"><option value="png" selected>PNG (lossless, dpi stored in the file)</option><option value="jpg">JPEG (smaller)</option></select>
+      <p class="note" id="imgnote"></p>
+      <div class="btns" style="margin-top:8px"><button class="act primary" id="save" type="button">Save image</button></div>
+      <p class="note" id="saved" aria-live="polite"></p>
+      <div id="fallback" hidden></div>
+    </fieldset>
+
+    <fieldset><legend>Display</legend>
+      <label for="nums">Numbers in the cells</label>
+      <select id="nums"><option value="auto">When they fit</option><option value="on">Always</option><option value="off">Never</option></select>
+      <label class="chk"><input type="checkbox" id="enames" checked> Element names beside the leftmost nuclide with data</label>
+      <label class="chk"><input type="checkbox" id="radio" checked> Dashed pattern on radioactive nuclides</label>
+      <label class="chk"><input type="checkbox" id="grid" checked> Grid lines</label>
+      <label class="chk"><input type="checkbox" id="magic" checked> Magic numbers (2, 8, 20, 28, 50, 82, 126)</label>
+      <label class="chk"><input type="checkbox" id="diag"> Lines of constant mass number</label>
+      <div class="btns" style="margin-top:10px"><button class="act" id="copy" type="button">Copy table (CSV)</button></div>
+      <p class="note" id="copied" aria-live="polite"></p>
+    </fieldset>
+  </div>
+
+  <div class="main">
+    <div class="stage"><canvas id="cv" role="img" aria-label="Nuclide chart"></canvas><div class="tip" id="tip" hidden></div></div>
+    <div class="hint" id="hint" hidden></div>
+    <div class="stats" id="stats"></div>
+    <div class="cols">
+      <div class="card"><h2 id="seltitle">Selected nuclide</h2><div class="scroll" id="seltab"><p class="note">Click a nuclide on the chart.</p></div></div>
+      <div class="card"><h2>Largest values in view</h2><div class="scroll" id="toptab"></div></div>
+      <div class="card refcard"><h2 id="reftitle">References</h2>
+        <div class="reftools"><label for="refsort" class="sr">Sort references</label>
+          <select id="refsort"><option value="yd">Newest first</option><option value="ya">Oldest first</option><option value="au">Author A–Z</option><option value="nd">Most data sets first</option></select>
+          <button class="act" type="button" id="refcopy">Copy list</button><span class="note" id="refmsg" aria-live="polite"></span></div>
+        <div class="scroll tall" id="reftab"><p class="note">Click a nuclide on the chart to list the publications behind its selected data sets.</p></div></div>
+    </div>
+    <p class="foot" id="buildinfo"></p>
+    <p class="foot">Counts come from the EXFOR master files of <span id="mdate"></span>. A data set is one reaction record with a data table; its size is the number of points in that table. Sums, ratios and other complex reactions are left out, natural targets (A = 0) cannot be placed on the chart, and superseded data sets are included. Time-of-flight data are those whose METHOD field contains TOF. Resonance parameters (RP) are not stored as SIG: they are tables of resonance energies (reaction (n,0)), spins, orbital momenta and widths (WID, WID/STR, WID/RED), and each row of such a table is one resonance, so a resonance may appear in an energy table and again in a width table. Entries and points counted for "all reactions" can repeat across reaction types. The energy filter uses the lowest and highest incident-neutron energy of each data set (from EN, EN-MIN/MAX, EN-RES or the resonance-energy column, in the units of the table); points are not clipped to the range.</p>
+  </div>
+</div>
+
+<script>
+// rows: Z, A, process, [[points, flags (1 = TOF, 2 = SIG, 4 = RP), entry index, quantity index], ...] one item per data set
+const QLIST = __QLIST__;
+const ENTS = __ENTS__;     // [entry id, first author, year, citation, title] per entry index
+const YEAR = ENTS.map(e => /^\d{4}$/.test(e[2]) ? +e[2] : null);
+const YMIN = Math.min(...YEAR.filter(y => y)), YMAX = Math.max(...YEAR.filter(y => y));
+let YF = null;
+const QDESC = { SIG:"cross section", DA:"angular distribution", DE:"energy distribution", "DA/DE":"double-differential", EN:"resonance energy", FY:"fission yield",
+  RI:"resonance integral", WID:"resonance width", STF:"strength function", SPC:"spectrum", D:"level spacing", NU:"neutrons per fission", "SIG/RAT":"cross-section ratio",
+  AMP:"scattering amplitude", KE:"kinetic energy", "POL/DA":"polarisation, angular", TRN:"transmission", J:"spin", AKE:"average kinetic energy", ALF:"alpha (capture/fission)",
+  RYL:"reaction yield", RAD:"scattering radius", AP:"potential scattering radius", MLT:"multiplicity", ETA:"eta", L:"orbital momentum", "WID/RED":"reduced width", "WID/STR":"width strength",
+  "FY/RAT":"yield ratio", "NU/DE":"neutron number vs energy", "FY/DE":"yield vs energy", "MLT/DE":"multiplicity vs energy" };
+const DATA = __DATA__;
+const MASTER_DATE = "__MDATE__";
+const BUILD_INFO = "__BUILDINFO__";
+const PROJECT_URL = "__PROJECT_URL__";
+const EL = "n H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og".split(" ");
+const MAGIC = [2, 8, 20, 28, 50, 82, 126];
+// stable nuclides (no decay observed, or half-life far beyond 1e19 y is NOT assumed: Bi-209 is treated as radioactive); everything else is radioactive
+const STABLE = {"1":[1,2],"2":[3,4],"3":[6,7],"4":[9],"5":[10,11],"6":[12,13],"7":[14,15],"8":[16,17,18],"9":[19],"10":[20,21,22],"11":[23],"12":[24,25,26],"13":[27],"14":[28,29,30],"15":[31],"16":[32,33,34,36],"17":[35,37],"18":[36,38,40],"19":[39,41],"20":[40,42,43,44,46,48],"21":[45],"22":[46,47,48,49,50],"23":[51],"24":[50,52,53,54],"25":[55],"26":[54,56,57,58],"27":[59],"28":[58,60,61,62,64],"29":[63,65],"30":[64,66,67,68,70],"31":[69,71],"32":[70,72,73,74],"33":[75],"34":[74,76,77,78,80],"35":[79,81],"36":[80,82,83,84,86],"37":[85],"38":[84,86,87,88],"39":[89],"40":[90,91,92,94],"41":[93],"42":[92,94,95,96,97,98],"44":[96,98,99,100,101,102,104],"45":[103],"46":[102,104,105,106,108,110],"47":[107,109],"48":[106,108,110,111,112,114],"49":[113],"50":[112,114,115,116,117,118,119,120,122,124],"51":[121,123],"52":[120,122,123,124,125,126],"53":[127],"54":[126,128,129,130,131,132,134],"55":[133],"56":[132,134,135,136,137,138],"57":[139],"58":[136,138,140,142],"59":[141],"60":[142,143,145,146,148],"62":[144,149,150,152,154],"63":[153],"64":[154,155,156,157,158,160],"65":[159],"66":[156,158,160,161,162,163,164],"67":[165],"68":[162,164,166,167,168,170],"69":[169],"70":[168,170,171,172,173,174,176],"71":[175],"72":[176,177,178,179,180],"73":[181],"74":[182,183,184,186],"75":[185],"76":[184,187,188,189,190,192],"77":[191,193],"78":[192,194,195,196,198],"79":[197],"80":[196,198,199,200,201,202,204],"81":[203,205],"82":[204,206,207,208]};
+const isRadio = (z, a) => !(STABLE[z] && STABLE[z].includes(a));
+const $ = id => document.getElementById(id);
+const LS = { get(k, d) { try { const v = localStorage.getItem("nc_" + k); return v === null ? d : v; } catch (e) { return d; } },
+             set(k, v) { try { localStorage.setItem("nc_" + k, v); } catch (e) {} } };
+
+/* reaction names */
+const SPECIAL = { TOT:["(n,tot)","total"], EL:["(n,el)","elastic scattering"], INL:["(n,n')","inelastic scattering"], F:["(n,f)","fission"],
+  G:["(n,γ)","radiative capture"], "0":["(n,0)","resonance parameters"], X:["(n,x)","particle production"], ABS:["(n,abs)","absorption"],
+  THS:["(n,ths)","thermal scattering"], SCT:["(n,sct)","scattering"], NON:["(n,non)","nonelastic"], "2N":["(n,2n)",""], "3N":["(n,3n)",""],
+  P:["(n,p)",""], A:["(n,α)",""], D:["(n,d)",""], T:["(n,t)",""], HE3:["(n,³He)",""] };
+const PART = { N:"n", P:"p", D:"d", T:"t", A:"α", G:"γ", X:"x", HE3:"³He" };
+function rxName(code) {
+  if (SPECIAL[code]) return SPECIAL[code];
+  const s = code.split("+").map(t => { const m = t.match(/^(\d*)(.*)$/); return m[1] + (PART[m[2]] || m[2].toLowerCase()); }).join("+");
+  return ["(n," + s + ")", ""];
+}
+
+/* data index */
+const procTotals = {};
+const byNuc = {};
+for (const r of DATA) {
+  procTotals[r[2]] = (procTotals[r[2]] || 0) + r[3].length;
+  (byNuc[r[0] + "-" + r[1]] = byNuc[r[0] + "-" + r[1]] || []).push(r);
+}
+const procs = Object.keys(procTotals).sort((a, b) => procTotals[b] - procTotals[a]);
+
+/* palettes */
+const PALETTES = {
+  "Spectrum (blue, green, orange, red)": ["#3b4cc0", "#2a9fd6", "#27b38a", "#8fc73e", "#f2a31b", "#e0402a"],
+  "Turbo": ["#30123b", "#4662d7", "#36aaf9", "#1ae4b6", "#72fe5e", "#c7ef34", "#faba39", "#f66b19", "#ca2a04"],
+  "Viridis": ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
+  "Plasma": ["#0d0887", "#7e03a8", "#cc4778", "#f89540", "#f0f921"],
+  "Cool to warm": ["#3b4cc0", "#8db0fe", "#dcdcdc", "#f4987a", "#b40426"],
+  "Blues": ["#c6dbef", "#6baed6", "#2171b5", "#08306b"],
+  "Greens": ["#d3efc9", "#74c476", "#238b45", "#00441b"],
+  "Reds": ["#fcc5b0", "#fb6a4a", "#cb181d", "#67000d"]
+};
+function hex2rgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+function makeRamp(name, last) {
+  const stops = PALETTES[name].map(hex2rgb);
+  if (last) stops.push(hex2rgb(last));
+  const n = 256, out = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1) * (stops.length - 1), k = Math.min(stops.length - 2, Math.floor(t)), f = t - k;
+    const a = stops[k], b = stops[k + 1];
+    out[i] = "rgb(" + [0, 1, 2].map(j => Math.round(a[j] + (b[j] - a[j]) * f)).join(",") + ")";
+  }
+  return out;
+}
+
+/* state */
+const S = { scale: "log", sel: null, view: null, drag: null, hover: null };
+const BG = { white: "#ffffff", grey: "#e4e8ee", black: "#000000" };
+
+/* controls setup */
+(function init() {
+  const rx = $("rx");
+  rx.innerHTML = '<option value="*">All neutron reactions together</option>' + procs.map(p => {
+    const n = rxName(p); return '<option value="' + p + '">' + n[0] + (n[1] ? " " + n[1] : "") + " — " + procTotals[p].toLocaleString("en") + "</option>";
+  }).join("");
+  rx.value = LS.get("rx", "G"); if (rx.value === "") rx.value = "G";
+  $("pal").innerHTML = Object.keys(PALETTES).map(k => "<option>" + k + "</option>").join("");
+  const pal = LS.get("pal", Object.keys(PALETTES)[0]); $("pal").value = PALETTES[pal] ? pal : Object.keys(PALETTES)[0];
+  $("bgc").value = LS.get("bg", "white");
+  $("ymin").placeholder = YMIN; $("ymax").placeholder = YMAX;
+  $("ynote").textContent = "Year of the main publication of the EXFOR entry, " + YMIN + "\u2013" + YMAX + " (empty = complete period). " + YEAR.filter(y => y === null).length + " entries give no usable year.";
+  $("buildinfo").innerHTML = "Data: " + esc(BUILD_INFO) + " EXFOR is distributed by the IAEA Nuclear Data Section under the CC BY 4.0 licence; please cite N. Otuka et al., Nuclear Data Sheets 120 (2014) 272 (EXFOR) and state the version. Tool and source code: <a href=\"" + esc(PROJECT_URL) + "\" target=\"_blank\" rel=\"noopener\">" + esc(PROJECT_URL) + "</a>.";
+  $("mdate").textContent = MASTER_DATE; for (const e of document.querySelectorAll(".mdate2")) e.textContent = MASTER_DATE;
+  setRangesAll();
+})();
+function setRangesAll() {
+  $("zmin").value = 1; $("zmax").value = 100; $("nmin").value = 0; $("nmax").value = 160; $("amin").value = 1; $("amax").value = 260;
+}
+function ival(id, d) { const v = parseInt($(id).value, 10); return Number.isFinite(v) ? v : d; }
+
+/* values for the current selection */
+function readYF() {
+  const a = parseInt($("ymin").value, 10), b = parseInt($("ymax").value, 10);
+  const lo = Number.isFinite(a) ? a : YMIN, hi = Number.isFinite(b) ? b : YMAX;
+  YF = (lo <= YMIN && hi >= YMAX) ? null : { lo, hi, unk: $("yunk").checked };
+  $("yunk").disabled = !YF;
+}
+let EF = null;
+function readEF() {
+  const a = parseFloat($("emin").value), b = parseFloat($("emax").value), u = parseFloat($("eunit").value);
+  const has = Number.isFinite(a) || Number.isFinite(b);
+  const L = x => Math.round(Math.log10(x) * 1000);
+  EF = has ? { lo: Number.isFinite(a) && a > 0 ? L(a * u) : -Infinity, hi: Number.isFinite(b) && b > 0 ? L(b * u) : Infinity,
+               mode: $("emode").value, unk: $("eunk").checked } : null;
+  $("eunk").disabled = !has;
+}
+function passesE(d) {
+  if (!EF) return true;
+  if (d[4] === null || d[4] === undefined) return EF.unk;
+  const lo = d[4], hi = d[5], a = EF.lo, b = EF.hi;
+  if (EF.mode === "in") return lo >= a - 1 && hi <= b + 1;
+  if (EF.mode === "co") return lo <= a + 1 && hi >= b - 1;
+  return hi >= a - 1 && lo <= b + 1;
+}
+function passes(d, meas, qty, p0, p1) {
+  if (!passesE(d)) return false;
+  if (YF) { const y = YEAR[d[2]]; if (y === null ? !YF.unk : (y < YF.lo || y > YF.hi)) return false; }
+  if (d[0] < p0 || d[0] > p1) return false;
+  if (meas === "tof" && !(d[1] & 1)) return false;
+  if (meas === "notof" && (d[1] & 1)) return false;
+  if (qty.size) {
+    let ok = false;
+    for (const k of qty) {
+      if (k === "sig" ? d[1] & 2 : k === "res" ? d[1] & 4 : k === "other" ? !(d[1] & 6) && d[3] !== QLIST.names.indexOf("RYL") : d[3] === +k.slice(2)) { ok = true; break; }
+    }
+    if (!ok) return false;
+  }
+  return true;
+}
+function limits() {
+  const p0 = Math.max(1, ival("pmin", 1)), pm = parseInt($("pmax").value, 10);
+  return [p0, Number.isFinite(pm) ? pm : Infinity];
+}
+function compute() {
+  readEF(); readYF();
+  const rx = $("rx").value, metric = $("metric").value, meas = $("meas").value, qty = QSEL;
+  const [p0, p1] = limits();
+  const A0 = ival("amin", 1), A1 = ival("amax", 999);
+  const cells = new Map();
+  for (const r of DATA) {
+    if (rx !== "*" && r[2] !== rx) continue;
+    if (r[1] < A0 || r[1] > A1) continue;
+    let v = 0, nd = 0, ns = 0, nr = 0; const ents = metric === "e" ? new Set() : null;
+    for (const d of r[3]) {
+      if (!passes(d, meas, qty, p0, p1)) continue;
+      nd++; if (d[1] & 2) ns++; if (d[1] & 4) nr++;
+      if (metric === "r") { if (d[1] & 4) v += d[0]; }
+      else if (metric === "d") v++; else if (metric === "p") v += d[0]; else ents.add(d[2]);
+    }
+    if (ents) v = ents.size;
+    if (v <= 0) continue;
+    const k = r[0] + "|" + (r[1] - r[0]);
+    const c = cells.get(k);
+    if (c) { c.nd += nd; c.ns += ns; c.nr += nr; if (ents) { for (const e of ents) c.ents.add(e); c.v = c.ents.size; } else c.v += v; }
+    else cells.set(k, { z: r[0], a: r[1], n: r[1] - r[0], v, ents, nd, ns, nr });
+  }
+  return cells;
+}
+
+/* drawing */
+const cv = $("cv"); let ctx = cv.getContext("2d");
+let layout = null, cellsNow = new Map();
+function lum(hex) { const [r, g, b] = hex2rgb(hex); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
+function niceStep(cell, minPx, steps) { for (const s of steps) if (s * cell >= minPx) return s; return steps[steps.length - 1]; }
+function metricName() { return { d: "data sets", e: "EXFOR entries", p: "data points", r: "resonances" }[$("metric").value]; }
+function selectionTitle() {
+  const rx = $("rx").value, n = rx === "*" ? ["All neutron reactions", ""] : rxName(rx);
+  let t = n[0] + (n[1] ? " " + n[1] : "");
+  const bits = [];
+  if ($("meas").value === "tof") bits.push("time-of-flight data");
+  if ($("meas").value === "notof") bits.push("without time-of-flight");
+  if (QSEL.size) bits.push("quantity " + qLabels().join(" + "));
+  if (EF) { const u = $("eunit").selectedOptions[0].textContent, m = { ov: "overlapping", "in": "inside", co: "covering" }[EF.mode];
+    bits.push("E " + m + " " + ($("emin").value || "0") + "\u2013" + ($("emax").value || "\u221e") + " " + u); }
+  if (YF) bits.push("published " + YF.lo + "\u2013" + YF.hi);
+  const [q0, q1] = limits();
+  if (q0 > 1 || q1 < Infinity) bits.push(q1 < Infinity ? q0 + "\u2013" + q1 + " points per data set" : "\u2265 " + q0 + " points per data set");
+  return { main: "Number of " + metricName() + " in EXFOR: " + t, sub: bits.length ? bits.join(", ") : "all data" };
+}
+function draw() { drawInner(null); }
+function drawInner(EX) {
+  const cells = cellsNow = compute();
+  const z0 = Math.max(1, ival("zmin", 1)), z1 = Math.max(z0, ival("zmax", 100));
+  const n0 = Math.max(0, ival("nmin", 0)), n1 = Math.max(n0, ival("nmax", 160));
+  const W = EX ? EX.W : Math.max(280, Math.floor(cv.parentElement.clientWidth));
+  const dpr = EX ? EX.dpr : (window.devicePixelRatio || 1);
+  const fs = Math.max(11, Math.min(20, W / 62));                          // base font, scales with the chart width
+  const bgName = $("bgc").value, bg = BG[bgName], dark = lum(bg) < 0.45;
+  const ink = dark ? "#f2f5f8" : "#14202e", soft = dark ? "rgba(255,255,255,.22)" : "rgba(20,32,46,.18)";
+  const right = fs * 6.4, top = fs * 3.6;
+  const nN = n1 - n0 + 1, nZ = z1 - z0 + 1;
+  const maxH = Math.max(380, Math.min(window.innerHeight * 0.92, 1100));
+  // text sizes follow the cell size, so labels grow when the chart is zoomed in; margins follow the text
+  const sizes = c => {
+    const tk = Math.min(fs * 2.4, Math.max(fs * 0.9, c * 0.5));                      // tick values
+    const en = Math.min(c * 0.8, Math.max(fs * 0.95, c * 0.6), fs * 2.8);              // element names
+    const at = Math.max(fs * 1.05, tk * 1.15);                                          // axis titles
+    const left = Math.max(fs * 4.8, at * 1.9 + 1.9 * tk + fs * 0.5 + ($("enames").checked ? 1.5 * en : 0));
+    const bottom = fs * 0.7 + tk * 1.15 + at * 1.5;
+    return { tk, en, at, left, bottom };
+  };
+  let cell = 10, SZ = sizes(cell);
+  for (let it = 0; it < 5; it++) {
+    SZ = sizes(cell);
+    cell = Math.min((W - SZ.left - right) / nN, (maxH - top - SZ.bottom) / nZ);
+  }
+  SZ = sizes(cell);
+  const { tk, en, at, left, bottom } = SZ;
+  const pw = cell * nN, ph = cell * nZ;
+  const H = Math.ceil(top + ph + bottom);
+  if (EX) { EX.canvas.width = Math.round(W * dpr); EX.canvas.height = Math.round(H * dpr); EX.H = H; ctx = EX.canvas.getContext("2d"); }
+  else { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.style.height = H + "px"; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const font = (px, w, mono) => (w || 400) + " " + px + "px " + (mono ? "'IBM Plex Mono',ui-monospace,monospace" : "'IBM Plex Sans',system-ui,sans-serif");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const x0 = left, y0 = top;                                              // top-left of the plot area
+  if (!EX) layout = { x0, y0, cell, n0, n1, z0, z1, pw, ph, W, H };
+
+  // values and colours
+  let vmaxAuto = 1, vis = [];
+  for (const c of cells.values()) if (c.n >= n0 && c.n <= n1 && c.z >= z0 && c.z <= z1) { vis.push(c); if (c.v > vmaxAuto) vmaxAuto = c.v; }
+  const vmaxIn = parseFloat($("vmax").value);
+  const vmax = Number.isFinite(vmaxIn) && vmaxIn >= 2 ? vmaxIn : Math.max(vmaxAuto, 2);
+  const last = $("blk").checked ? (dark ? "#ffffff" : "#000000") : null;
+  const ramp = makeRamp($("pal").value, last);
+  const sc = S.scale;
+  const tOf = v => {
+    v = Math.min(v, vmax);
+    if (sc === "log") return Math.log(v) / Math.log(vmax);
+    if (sc === "sqrt") return Math.sqrt((v - 1) / (vmax - 1));
+    return (v - 1) / (vmax - 1);
+  };
+  const colour = v => ramp[Math.max(0, Math.min(255, Math.round(tOf(v) * 255)))];
+
+  // grid
+  const gx = n => x0 + (n - n0) * cell, gy = z => y0 + (z1 - z) * cell;     // left and top edge of cell (n, z)
+  if ($("grid").checked && cell >= 7) {
+    ctx.strokeStyle = dark ? "rgba(255,255,255,.10)" : "rgba(20,32,46,.09)"; ctx.lineWidth = 1; ctx.beginPath();
+    for (let n = n0; n <= n1 + 1; n++) { const x = Math.round(gx(n)) + .5; ctx.moveTo(x, y0); ctx.lineTo(x, y0 + ph); }
+    for (let z = z0; z <= z1 + 1; z++) { const y = Math.round(y0 + (z1 + 1 - z) * cell) + .5; ctx.moveTo(x0, y); ctx.lineTo(x0 + pw, y); }
+    ctx.stroke();
+  }
+  // lines of constant A
+  if ($("diag").checked) {
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, pw, ph); ctx.clip();
+    ctx.strokeStyle = soft; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+    const stepA = niceStep(cell, fs * 3.2, [10, 20, 50]);
+    ctx.font = font(fs * 0.78, 400, true); ctx.fillStyle = dark ? "rgba(255,255,255,.55)" : "rgba(20,32,46,.55)";
+    for (let A = stepA * Math.ceil((n0 + z0) / stepA); A <= n1 + z1; A += stepA) {
+      ctx.beginPath(); ctx.moveTo(gx(Math.max(n0, A - z1 - 1)) + 0, 0);
+      const xa = gx(A - (z1 + 0.5)) + cell * 0.5 - cell * 0.5, ya = y0;
+      const xb = gx(A - (z0 - 0.5)) + cell * 0.5 - cell * 0.5, yb = y0 + ph;
+      ctx.beginPath(); ctx.moveTo(xa + cell * 0.5 * 0 + cell * 0.5, ya); ctx.lineTo(xb + cell * 0.5, yb); ctx.stroke();
+      ctx.fillText("A=" + A, Math.max(x0 + 2, Math.min(x0 + pw - fs * 3.2, xa + cell * 0.5 + 3)), y0 + fs * 0.9);
+    }
+    ctx.restore(); ctx.setLineDash([]);
+  }
+  // magic numbers
+  if ($("magic").checked) {
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, pw, ph); ctx.clip();
+    ctx.strokeStyle = dark ? "rgba(255,255,255,.45)" : "rgba(20,32,46,.40)"; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    for (const m of MAGIC) {
+      if (m >= n0 && m <= n1) { const x = gx(m) + cell / 2; ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 + ph); ctx.stroke(); }
+      if (m >= z0 && m <= z1) { const y = gy(m) + cell / 2; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + pw, y); ctx.stroke(); }
+    }
+    ctx.restore(); ctx.setLineDash([]);
+  }
+  // cells
+  const gap = cell >= 9 ? Math.max(0.6, cell * 0.04) : 0;
+  for (const c of vis) {
+    ctx.fillStyle = colour(c.v);
+    ctx.fillRect(gx(c.n) + gap / 2, gy(c.z) + gap / 2, cell - gap, cell - gap);
+  }
+  // dashed diagonal pattern on radioactive nuclides
+  if ($("radio").checked && cell >= 5) {
+    const lw = Math.max(0.6, cell / 30), gp = Math.max(3, cell / 3.6);
+    ctx.save(); ctx.lineWidth = lw; ctx.setLineDash([lw * 3.5, lw * 3]);
+    for (const c of vis) {
+      if (!isRadio(c.z, c.a)) continue;
+      const x = gx(c.n), y = gy(c.z), rgb = colour(c.v).match(/\d+/g).map(Number);
+      const l = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+      ctx.strokeStyle = l > 0.5 ? "rgba(0,0,0,.55)" : "rgba(255,255,255,.7)";
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, cell, cell); ctx.clip(); ctx.beginPath();
+      for (let k = gp / 2; k < cell * 2; k += gp) { ctx.moveTo(x + k, y); ctx.lineTo(x + k - cell, y + cell); }
+      ctx.stroke(); ctx.restore();
+    }
+    ctx.restore();
+  }
+  // numbers
+  const numMode = $("nums").value;
+  let numsDrawn = false;
+  if (numMode !== "off") {
+    const fpx = c => cell * (String(c.v).length <= 2 ? 0.5 : String(c.v).length === 3 ? 0.38 : 0.3);
+    const ok = numMode === "on" || fpx({ v: 99 }) >= 8.5;
+    if (ok) {
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      for (const c of vis) {
+        const px = fpx(c); if (numMode === "auto" && px < 8.5) continue;
+        const t = tOf(c.v), rgb = colour(c.v).match(/\d+/g).map(Number);
+        const l = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+        ctx.font = font(px, 600, true); ctx.fillStyle = l > 0.58 ? "#101820" : "#ffffff";
+        ctx.fillText(String(c.v), gx(c.n) + cell / 2, gy(c.z) + cell / 2 + px * 0.04);
+      }
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic"; numsDrawn = true;
+    }
+  }
+  // element names next to the leftmost nuclide with data in each row
+  if ($("enames").checked) {
+    const px = en;
+    if (px >= 7) {
+      const lm = new Map();
+      for (const c of vis) { const o = lm.get(c.z); if (o === undefined || c.n < o) lm.set(c.z, c.n); }
+      ctx.font = font(px, 600, false); ctx.textBaseline = "middle"; ctx.textAlign = "right";
+      for (const [z, n] of lm) {
+        const inside = n > n0, x = inside ? gx(n) - Math.max(2, cell * 0.12) : x0 - fs * 0.45 - 1.9 * tk - fs * 0.3;
+        ctx.fillStyle = inside ? ink : (dark ? "#f2f5f8" : "#14202e");
+        ctx.fillText(EL[z] || "?", x, gy(z) + cell / 2);
+      }
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+    }
+  }
+  // selection and hover outlines
+  const outline = (key, col, w) => { if (!key) return; const [z, n] = key.split("|").map(Number);
+    if (n < n0 || n > n1 || z < z0 || z > z1) return;
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.strokeRect(gx(n) - 0.5, gy(z) - 0.5, cell + 1, cell + 1); };
+  if (!EX) { outline(S.sel, "#e0402a", Math.max(2, fs / 6)); outline(S.hover, ink, Math.max(1.5, fs / 8)); }
+
+  // frame
+  ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.strokeRect(x0 - .5, y0 - .5, pw + 1, ph + 1);
+
+  // axes
+  ctx.fillStyle = ink; ctx.font = font(tk, 400, true); ctx.textAlign = "center"; ctx.textBaseline = "top";
+  const xs = niceStep(cell, tk * 2.9, [1, 2, 5, 10, 20, 50]);
+  for (let n = n0; n <= n1; n++) if (n % xs === 0) {
+    const x = gx(n) + cell / 2; ctx.fillText(String(n), x, y0 + ph + fs * 0.4);
+    ctx.beginPath(); ctx.moveTo(x, y0 + ph); ctx.lineTo(x, y0 + ph + fs * 0.25); ctx.strokeStyle = ink; ctx.stroke();
+  }
+  ctx.font = font(at, 500, false); ctx.fillText("Neutron number N", x0 + pw / 2, y0 + ph + fs * 0.4 + tk * 1.25);
+  ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.font = font(tk, 400, true);
+  const ys = niceStep(cell, tk * 1.3, [1, 2, 5, 10, 20]);
+  for (let z = z0; z <= z1; z++) if (z % ys === 0) ctx.fillText(String(z), x0 - fs * 0.45, gy(z) + cell / 2);
+  ctx.save(); ctx.translate(at * 0.95, y0 + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = font(at, 500, false); ctx.fillText("Proton number Z", 0, 0); ctx.restore();
+
+  // title
+  const st = selectionTitle();
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = ink;
+  ctx.font = font(fs * 1.25, 600, false); ctx.fillText(st.main, left, fs * 1.45, W - left - 8);
+  ctx.font = font(fs * 0.9, 400, false); ctx.fillStyle = dark ? "#b8c4d2" : "#4a5868";
+  ctx.fillText(st.sub + "  ·  Z " + z0 + "–" + z1 + ", N " + n0 + "–" + n1 + ", A " + ival("amin", 1) + "–" + ival("amax", 999) + "  ·  EXFOR " + MASTER_DATE, left, fs * 2.75, W - left - 8);
+
+  // colour bar
+  const bx = Math.min(x0 + pw + fs * 1.0, W - fs * 4.6), bw = fs * 0.95, bh = Math.max(120, Math.min(ph, fs * 22)), by = y0;
+  const grad = ctx.createLinearGradient(0, by + bh, 0, by);
+  for (let i = 0; i <= 24; i++) grad.addColorStop(i / 24, ramp[Math.round(i / 24 * 255)]);
+  ctx.fillStyle = grad; ctx.fillRect(bx, by, bw, bh); ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.strokeRect(bx - .5, by - .5, bw + 1, bh + 1);
+  ctx.fillStyle = ink; ctx.font = font(fs * 0.85, 400, true); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  const ticks = [];
+  if (sc === "log") { for (let v = 1; v <= vmax; v *= 10) ticks.push(v); }
+  else { const stp = niceTick(vmax / 5); for (let v = sc === "lin" ? 0 : 1; v <= vmax; v += stp) ticks.push(v === 0 ? 1 : v); }
+  ticks.push(vmax);
+  const drawn = [];
+  for (const v of ticks) {
+    const y = by + bh - tOf(Math.max(1, v)) * bh;
+    if (drawn.some(d => Math.abs(d - y) < fs * 1.1)) continue; drawn.push(y);
+    ctx.beginPath(); ctx.moveTo(bx + bw, y); ctx.lineTo(bx + bw + fs * 0.3, y); ctx.stroke();
+    ctx.fillText(Math.round(v).toLocaleString("en"), bx + bw + fs * 0.45, y);
+  }
+  ctx.font = font(fs * 0.9, 500, false); ctx.save(); ctx.translate(bx - fs * 0.3, by + bh + fs * 0.2); ctx.textAlign = "left"; ctx.textBaseline = "top";
+  ctx.fillText(metricName(), 0, 0); ctx.restore();
+
+  // legend: radioactive pattern
+  if ($("radio").checked) {
+    const sz = fs * 1.1, lx = Math.min(x0 + pw + fs * 1.0, W - fs * 4.6), ly = by + bh + fs * 2.3;
+    ctx.fillStyle = bg === "#000000" ? "#555" : "#c9d3de"; ctx.fillRect(lx, ly, sz, sz);
+    ctx.save(); ctx.beginPath(); ctx.rect(lx, ly, sz, sz); ctx.clip(); ctx.strokeStyle = bg === "#000000" ? "rgba(255,255,255,.8)" : "rgba(0,0,0,.6)";
+    ctx.lineWidth = Math.max(0.7, sz / 20); ctx.setLineDash([sz / 4, sz / 7]); ctx.beginPath();
+    for (let k = sz / 4; k < sz * 2; k += sz / 2.2) { ctx.moveTo(lx + k, ly); ctx.lineTo(lx + k - sz, ly + sz); } ctx.stroke(); ctx.restore();
+    ctx.fillStyle = ink; ctx.font = font(fs * 0.8, 400, false); ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.fillText("radioactive", lx, ly + sz + fs * 0.25); ctx.textBaseline = "alphabetic";
+  }
+  // zoom rectangle
+  if (!EX && S.drag && S.drag.moved) {
+    const a = S.drag; ctx.strokeStyle = "#e0402a"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.strokeRect(Math.min(a.x, a.cx), Math.min(a.y, a.cy), Math.abs(a.cx - a.x), Math.abs(a.cy - a.y)); ctx.setLineDash([]);
+  }
+  { let nu = 0, tot = 0; for (const r of DATA) for (const d of r[3]) { tot++; if (d[4] === null) nu++; }
+    $("enote").textContent = "Energies are converted from the units of each EXFOR table and compared in the unit chosen. " + nu.toLocaleString("en") + " of " + tot.toLocaleString("en") + " data sets (for example Maxwellian averages, fission yields, spectra) give no incident energy." + (EF && !EF.unk ? " They are left out while an energy range is set." : ""); }
+  if (!EX) summary(vis, vmaxAuto, numsDrawn);
+}
+function niceTick(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p; }
+
+/* side information */
+function emptyHint(vis) {
+  const h = $("hint");
+  if (vis.length) { h.hidden = true; return; }
+  const rx = $("rx").value, meas = $("meas").value, qty = QSEL, [p0, p1] = limits();
+  const A0 = ival("amin", 1), A1 = ival("amax", 999), z0 = ival("zmin", 1), z1 = ival("zmax", 100), n0 = ival("nmin", 0), n1 = ival("nmax", 160);
+  const other = {}; let any = 0;
+  for (const r of DATA) {
+    if (r[1] < A0 || r[1] > A1 || r[0] < z0 || r[0] > z1 || r[1] - r[0] < n0 || r[1] - r[0] > n1) continue;
+    for (const d of r[3]) if (passes(d, meas, qty, p0, p1)) { other[r[2]] = (other[r[2]] || 0) + 1; any++; }
+  }
+  const list = Object.entries(other).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  let html = "<b>Nothing matches these settings.</b> ";
+  if (rx !== "*" && list.length) {
+    html += "The selected reaction has no such data, but other reactions do. Quantities are tied to reaction types: for example resonance energies (EN) are filed under (n,0). Switch to:";
+    h.innerHTML = html + '<div class="btns">' + '<button class="act" type="button" data-p="*">All reactions (' + any.toLocaleString("en") + ")</button>" +
+      list.map(([p, n]) => '<button class="act" type="button" data-p="' + p + '">' + rxName(p)[0] + " (" + n.toLocaleString("en") + ")</button>").join("") + "</div>";
+    for (const b of h.querySelectorAll("button[data-p]")) b.onclick = () => { $("rx").value = b.dataset.p; LS.set("rx", b.dataset.p); draw(); };
+  } else html += "Try relaxing the points, energy, method, quantity or range filters.", h.innerHTML = html;
+  h.hidden = false;
+}
+function summary(vis, vmaxAuto) {
+  emptyHint(vis);
+  const total = vis.reduce((s, c) => s + c.v, 0);
+  let top = vis.slice().sort((a, b) => b.v - a.v);
+  const m = top[0];
+  $("stats").innerHTML =
+    '<div class="stat"><span>Nuclides with data</span><strong>' + vis.length.toLocaleString("en") + "</strong></div>" +
+    '<div class="stat"><span>Total ' + metricName() + "</span><strong>" + total.toLocaleString("en") + "</strong></div>" +
+    '<div class="stat"><span>Largest</span><strong>' + (m ? nucName(m.z, m.a) + " · " + m.v.toLocaleString("en") : "none") + "</strong></div>";
+  $("toptab").innerHTML = top.length ? '<table><thead><tr><th>Nuclide</th><th>Z</th><th>N</th><th>' + metricName() + "</th></tr></thead><tbody>" +
+    top.slice(0, 15).map(c => '<tr class="pick" data-k="' + c.z + "|" + c.n + '"><td class="m">' + nucName(c.z, c.a) + "</td><td class=\"m\">" + c.z + '</td><td class="m">' + c.n + '</td><td class="m">' + c.v.toLocaleString("en") + "</td></tr>").join("") + "</tbody></table>"
+    : '<p class="note">No data in this selection.</p>';
+  for (const tr of $("toptab").querySelectorAll("tr.pick")) tr.onclick = () => { S.sel = tr.dataset.k; showSel(); draw(); };
+  showSel();
+}
+function nucName(z, a) { return a + (EL[z] || "?"); }
+function tcase(s) { return s.replace(/\b([A-Z])([A-Z]{2,})\b/g, (m, a, b) => a + b.toLowerCase()); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+let refList = [];
+function showRefs() {
+  const box = $("reftab"); readYF();
+  if (!S.sel) { $("reftitle").textContent = "References"; return; }
+  readEF();
+  const [z, n] = S.sel.split("|").map(Number), a = z + n, rx = $("rx").value, meas = $("meas").value, qty = QSEL, [p0, p1] = limits();
+  const by = new Map(), allOf = new Map();
+  for (const r of byNuc[z + "-" + a] || []) for (const d of r[3]) allOf.set(d[2], (allOf.get(d[2]) || 0) + 1);
+  for (const r of byNuc[z + "-" + a] || []) {
+    if (rx !== "*" && r[2] !== rx) continue;
+    for (const d of r[3]) {
+      if (!passes(d, meas, qty, p0, p1)) continue;
+      let e = by.get(d[2]); if (!e) by.set(d[2], e = { i: d[2], sets: 0, pts: 0, subs: new Set(), rx: new Set(), q: new Set(), items: [], all: allOf.get(d[2]) || 0 });
+      e.sets++; e.pts += d[0]; e.subs.add(d[6]); e.rx.add(r[2]); e.q.add(QLIST.names[d[3]]); e.items.push({ s: d[6], rx: r[2], q: QLIST.names[d[3]], p: d[0] });
+    }
+  }
+  refList = [...by.values()];
+  const sort = $("refsort").value, yr = e => parseInt(ENTS[e.i][2], 10) || 0;
+  refList.sort(sort === "ya" ? (x, y) => yr(x) - yr(y) : sort === "au" ? (x, y) => ENTS[x.i][1].localeCompare(ENTS[y.i][1]) : sort === "nd" ? (x, y) => y.sets - x.sets : (x, y) => yr(y) - yr(x));
+  const rn = rx === "*" ? "all reactions" : rxName(rx)[0];
+  const nsets = refList.reduce((s, e) => s + e.sets, 0);
+  $("reftitle").textContent = "References for " + nucName(z, a) + ", " + rn + ": " + refList.length + " entries, " + nsets + " data sets (current filters)";
+  if (!refList.length) { box.innerHTML = '<p class="note">No data sets of this nuclide match the current filters.</p>'; return; }
+  box.innerHTML = refList.map(e => {
+    const [id, au, y, cit, ti] = ENTS[e.i];
+    const items = e.items.slice().sort((p, q) => p.s - q.s);
+    const lines = items.map(it => '<a href="https://www-nds.iaea.org/exfor/servlet/X4sGetSubent?subID=' + id + String(it.s).padStart(3, "0") + '" target="_blank" rel="noopener">' + String(it.s).padStart(3, "0") + "</a> " + esc(rxName(it.rx)[0]) + " " + esc(it.q) + " <span class=\"yr\">" + it.p.toLocaleString("en") + " pt" + (it.p === 1 ? "" : "s") + "</span>");
+    const part = e.all > e.sets ? '<span class="part">only ' + e.sets + " of " + e.all + " data sets of this entry for " + nucName(z, a) + " qualify</span>" : "";
+    return '<div class="ref"><div class="l1"><span class="au">' + esc(tcase(au) || "Unknown authors") + '</span><span class="yr">' + esc(y) + '</span><span class="cit">' + esc(cit) + "</span></div>" +
+      (ti ? '<div class="ti">' + esc(tcase(ti)) + " <span class=\"yr\">(title of the whole entry)</span></div>" : "") +
+      '<div class="meta">EXFOR ' + id + " \u00b7 " + e.sets + " data set" + (e.sets > 1 ? "s" : "") + ", " + e.pts.toLocaleString("en") + " points " + part + "</div>" +
+      '<div class="subs">' + lines.join(" \u00b7 ") + "</div></div>";
+  }).join("");
+}
+$("refsort").addEventListener("change", showRefs);
+$("refcopy").onclick = async () => {
+  const txt = refList.map(e => { const [id, au, y, cit, ti] = ENTS[e.i]; return tcase(au) + ", " + cit + (ti ? ". " + tcase(ti) : "") + " [EXFOR " + id + ", subentries " + [...e.subs].sort((p, q) => p - q).map(s => String(s).padStart(3, "0")).join("/") + ", " + e.sets + " data sets]"; }).join("\n");
+  let ok = false; try { await navigator.clipboard.writeText(txt); ok = true; } catch (er) {}
+  if (!ok) { const ta = document.createElement("textarea"); ta.value = txt; ta.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0"; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand("copy"); } catch (er) {} ta.remove(); }
+  $("refmsg").textContent = ok ? refList.length + " references copied." : "Copy was blocked here.";
+};
+function showSel() {
+  if (!S.sel) return;
+  showRefs();
+  const [z, n] = S.sel.split("|").map(Number), rows = byNuc[z + "-" + (z + n)] || [];
+  $("seltitle").textContent = "Selected: " + nucName(z, z + n) + "  (Z = " + z + ", N = " + n + ")";
+  if (!rows.length) { $("seltab").innerHTML = '<p class="note">No neutron-induced data sets for this target.</p>'; return; }
+  readEF(); readYF();
+  const [p0, p1] = limits(), meas = $("meas").value, qty = QSEL;
+  const stat = r => { let n = 0, tof = 0, sig = 0, res = 0, rn = 0, ok = 0, pts = 0;
+    for (const d of r[3]) { n++; if (d[1] & 1) tof++; if (d[1] & 2) sig++; if (d[1] & 4) { res++; rn += d[0]; } if (passes(d, meas, qty, p0, p1)) { ok++; pts += d[0]; } }
+    return { r, n, tof, sig, res, rn, ok, pts }; };
+  const L = rows.map(stat).sort((a, b) => b.ok - a.ok || b.n - a.n);
+  const tot = L.reduce((s, x) => ({ n: s.n + x.n, tof: s.tof + x.tof, sig: s.sig + x.sig, res: s.res + x.res, rn: s.rn + x.rn, ok: s.ok + x.ok, pts: s.pts + x.pts }), { n: 0, tof: 0, sig: 0, res: 0, rn: 0, ok: 0, pts: 0 });
+  $("seltab").innerHTML = '<table><thead><tr><th>Reaction</th><th>Selected</th><th>All</th><th>TOF</th><th>SIG</th><th>RP sets</th><th>RP rows</th><th>Points</th></tr></thead><tbody>' +
+    L.map(x => { const nm = rxName(x.r[2]); return '<tr class="pick" data-p="' + x.r[2] + '"><td>' + nm[0] + (nm[1] ? " " + nm[1] : "") + '</td><td class="m">' + x.ok + '</td><td class="m">' + x.n + '</td><td class="m">' + x.tof + '</td><td class="m">' + x.sig + '</td><td class="m">' + x.res + '</td><td class="m">' + x.rn.toLocaleString("en") + '</td><td class="m">' + x.pts.toLocaleString("en") + "</td></tr>"; }).join("") +
+    '</tbody><tfoot><tr><td><b>All</b></td><td class="m"><b>' + tot.ok + '</b></td><td class="m"><b>' + tot.n + '</b></td><td class="m"><b>' + tot.tof + '</b></td><td class="m"><b>' + tot.sig + '</b></td><td class="m"><b>' + tot.res + '</b></td><td class="m"><b>' + tot.rn.toLocaleString("en") + '</b></td><td class="m"><b>' + tot.pts.toLocaleString("en") + "</b></td></tr></tfoot></table>" +
+    '<p class="note">"Selected" follows the current data filters; Points counts the selected data sets. SIG = cross-section data sets; RP = resonance-parameter data sets (energies, J, L, widths); TOF = time-of-flight. RP rows is the number of rows (resonances) in the RP tables, over all data sets of the nuclide.</p>';
+  for (const tr of $("seltab").querySelectorAll("tr.pick")) tr.onclick = () => { $("rx").value = tr.dataset.p; LS.set("rx", tr.dataset.p); draw(); };
+}
+
+/* pointer interaction */
+function cellAt(ev) {
+  if (!layout) return null;
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, L = layout;
+  const n = L.n0 + Math.floor((x - L.x0) / L.cell), z = L.z1 - Math.floor((y - L.y0) / L.cell);
+  if (x < L.x0 || y < L.y0 || x > L.x0 + L.pw || y > L.y0 + L.ph || n < L.n0 || n > L.n1 || z < L.z0 || z > L.z1) return null;
+  return { n, z, x, y };
+}
+cv.addEventListener("pointerdown", ev => {
+  const r = cv.getBoundingClientRect();
+  S.drag = { x: ev.clientX - r.left, y: ev.clientY - r.top, cx: ev.clientX - r.left, cy: ev.clientY - r.top, moved: false, pid: ev.pointerType };
+  if (ev.pointerType !== "touch") cv.setPointerCapture(ev.pointerId);
+});
+cv.addEventListener("pointermove", ev => {
+  const r = cv.getBoundingClientRect();
+  if (S.drag && ev.buttons) {
+    S.drag.cx = ev.clientX - r.left; S.drag.cy = ev.clientY - r.top;
+    if (Math.hypot(S.drag.cx - S.drag.x, S.drag.cy - S.drag.y) > 6) S.drag.moved = true;
+    if (S.drag.moved) { draw(); return; }
+  }
+  const c = cellAt(ev), tip = $("tip");
+  const key = c ? c.z + "|" + c.n : null;
+  if (key !== S.hover) { S.hover = key; draw(); }
+  if (!c) { tip.hidden = true; return; }
+  const a = c.z + c.n, v = cellsNow.get(key), rows = byNuc[c.z + "-" + a] || [];
+  tip.innerHTML = "<b>" + nucName(c.z, a) + "</b> &nbsp;Z=" + c.z + " N=" + c.n + " &nbsp;" + (isRadio(c.z, a) ? "radioactive" : "stable") + "<br>" + (v ? "<b>" + v.v.toLocaleString("en") + "</b> " + metricName() + (v.nd ? "<br>" + v.nd + " data sets: SIG " + v.ns + " \u00b7 RP " + v.nr + " \u00b7 other " + (v.nd - v.ns - v.nr) : "") : (rows.length ? "none in this selection" : "no neutron data"));
+  tip.hidden = false;
+  const sw = cv.parentElement.clientWidth, tw = tip.offsetWidth;
+  tip.style.left = Math.min(c.x + 14, sw - tw - 4) + "px"; tip.style.top = Math.max(4, c.y - tip.offsetHeight - 10) + "px";
+});
+cv.addEventListener("pointerleave", () => { $("tip").hidden = true; if (S.hover) { S.hover = null; draw(); } });
+cv.addEventListener("pointerup", ev => {
+  const d = S.drag; S.drag = null;
+  if (d && d.moved && layout) {
+    const L = layout, x0 = Math.min(d.x, d.cx), x1 = Math.max(d.x, d.cx), y0 = Math.min(d.y, d.cy), y1 = Math.max(d.y, d.cy);
+    const nA = Math.max(L.n0, L.n0 + Math.floor((x0 - L.x0) / L.cell)), nB = Math.min(L.n1, L.n0 + Math.floor((x1 - L.x0) / L.cell));
+    const zA = Math.max(L.z0, L.z1 - Math.floor((y1 - L.y0) / L.cell)), zB = Math.min(L.z1, L.z1 - Math.floor((y0 - L.y0) / L.cell));
+    if (nB >= nA && zB >= zA) { $("nmin").value = nA; $("nmax").value = nB; $("zmin").value = zA; $("zmax").value = zB; }
+    draw(); return;
+  }
+  const c = cellAt(ev);
+  if (c) { S.sel = c.z + "|" + c.n; draw(); }
+});
+
+/* multi-select quantity menu */
+const QSEL = new Set();
+const QCOUNT = (() => { let sig = 0, res = 0, other = 0, otherR = 0; const iR = QLIST.names.indexOf("RYL");
+  for (const r of DATA) for (const d of r[3]) { if (d[1] & 2) sig++; if (d[1] & 4) res++; if (!(d[1] & 6)) { other++; if (d[3] !== iR) otherR++; } }
+  return { sig, res, other, otherR }; })();
+function qLabels() {
+  const o = [];
+  for (const k of QSEL) o.push(k === "sig" ? "SIG" : k === "res" ? "RP" : k === "other" ? "other (not SIG, RP or RYL)" : QLIST.names[+k.slice(2)]);
+  return o.sort();
+}
+function qSummary() {
+  $("qmsg").textContent = "";
+  const l = qLabels(); $("qbtn").textContent = !l.length ? "All quantities" : l.length <= 3 ? l.join(" + ") : l.length + " quantities selected";
+}
+function buildQList() {
+  const f = $("qfind").value.trim().toLowerCase();
+  const iR = QLIST.names.indexOf("RYL");
+  const items = [["sig", "SIG", "cross section", QCOUNT.sig], ["res", "RP", "resonance parameters (EN, J, L, WID ...)", QCOUNT.res], ["q:" + iR, "RYL", QDESC.RYL, QLIST.counts[iR]], ["other", "Other", "neither SIG, RP nor RYL", QCOUNT.otherR]];
+  const codes = QLIST.names.map((n, i) => ["q:" + i, n, QDESC[n] || "", QLIST.counts[i]]).filter(c => c[1] !== "SIG").sort((a, b) => a[1].localeCompare(b[1]));
+  const keep = x => !f || (x[1] + " " + x[2]).toLowerCase().includes(f);
+  const row = x => '<label class="chk"><input type="checkbox" data-k="' + x[0] + '"' + (QSEL.has(x[0]) ? " checked" : "") + "> <b>" + esc(x[1]) + "</b> " + esc(x[2]) + '<span class="cnt">' + x[3].toLocaleString("en") + "</span></label>";
+  $("qlist").innerHTML = items.filter(keep).map(row).join("") + (f ? "" : "<hr>") + codes.filter(keep).map(row).join("");
+  for (const c of $("qlist").querySelectorAll("input")) c.onchange = () => {
+    if (c.checked) QSEL.add(c.dataset.k); else QSEL.delete(c.dataset.k);
+    for (const o of $("qlist").querySelectorAll('input[data-k="' + c.dataset.k + '"]')) o.checked = c.checked;
+    qSummary();
+    if ($("metric").value === "r" && QSEL.size && !QSEL.has("res") && [...QSEL].every(k => k === "sig" || k === "other")) $("metric").value = "d";
+    draw();
+  };
+}
+function qOpen(open) { $("qpanel").hidden = !open; $("qbtn").setAttribute("aria-expanded", open ? "true" : "false"); if (open) { buildQList(); $("qfind").focus(); } }
+$("qbtn").onclick = () => qOpen($("qpanel").hidden);
+$("qclose").onclick = () => qOpen(false);
+$("qclear").onclick = ev => {
+  ev.preventDefault(); ev.stopPropagation();
+  QSEL.clear(); $("qfind").value = ""; qSummary(); buildQList(); draw();
+  $("qmsg").textContent = "All quantities are counted."; qOpen(false); $("qbtn").focus();
+};
+$("qfind").addEventListener("input", buildQList);
+document.addEventListener("click", e => { if (!$("qpanel").hidden && !$("qms").contains(e.target)) qOpen(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("qpanel").hidden) qOpen(false); });
+qSummary();
+
+/* controls */
+for (const id of ["rx", "metric", "meas", "pal", "bgc", "nums", "grid", "magic", "enames", "radio", "diag", "blk", "vmax", "pmin", "pmax", "emin", "emax", "eunit", "emode", "eunk", "ymin", "ymax", "yunk", "zmin", "zmax", "nmin", "nmax", "amin", "amax"]) {
+  const el = $(id); const h = () => { if (id === "rx") LS.set("rx", el.value); if (id === "pal") LS.set("pal", el.value); if (id === "bgc") LS.set("bg", el.value); draw(); };
+  el.addEventListener("input", h); el.addEventListener("change", h);
+}
+for (const b of $("scale").querySelectorAll("button")) b.onclick = () => {
+  S.scale = b.dataset.v; for (const o of $("scale").querySelectorAll("button")) o.setAttribute("aria-pressed", o === b ? "true" : "false"); draw(); };
+$("reset").onclick = () => { setRangesAll(); $("ymin").value = ""; $("ymax").value = ""; $("yunk").checked = false; $("emin").value = ""; $("emax").value = ""; $("eunk").checked = false; $("pmin").value = 1; $("pmax").value = ""; $("vmax").value = ""; draw(); };
+$("copy").onclick = async () => {
+  const L = layout, rows = ["Z,element,A,N,value"];
+  for (const c of [...cellsNow.values()].sort((a, b) => a.z - b.z || a.a - b.a)) if (c.n >= L.n0 && c.n <= L.n1 && c.z >= L.z0 && c.z <= L.z1) rows.push([c.z, EL[c.z], c.a, c.n, c.v].join(","));
+  const txt = rows.join("\n"); let ok = false;
+  try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) {}
+  if (!ok) { const ta = document.createElement("textarea"); ta.value = txt; ta.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0"; document.body.appendChild(ta); ta.select(); try { ok = document.execCommand("copy"); } catch (e) {} ta.remove(); }
+  $("copied").textContent = ok ? rows.length - 1 + " rows copied." : "Copy was blocked here; use the list of largest values instead.";
+};
+function showView(help) {
+  $("helpview").hidden = !help; $("appview").hidden = help; $("showhelp").hidden = help;
+  window.scrollTo(0, 0); if (!help) { draw(); updateImgNote(); }
+}
+$("showhelp").onclick = () => showView(true); $("back").onclick = () => showView(false); $("back2").onclick = () => showView(false);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("helpview").hidden) showView(false); });
+/* image export: the chart is redrawn from scratch at dpi/96 times its on-screen size, so text and lines stay sharp */
+function exportInfo() {
+  const dpi = parseInt($("dpi").value, 10), W = layout ? layout.W : 800, H = layout ? layout.H : 500;
+  let s = dpi / 96, pw = Math.round(W * s), ph = Math.round(H * s);
+  const MAXS = 16000, MAXA = 150e6;
+  const k = Math.min(1, MAXS / Math.max(pw, ph), Math.sqrt(MAXA / (pw * ph)));
+  if (k < 1) { s *= k; pw = Math.round(W * s); ph = Math.round(H * s); }
+  return { dpi, s, pw, ph, W, H, clipped: k < 1, eff: Math.round(s * 96) };
+}
+function updateImgNote() {
+  const i = exportInfo();
+  $("imgnote").textContent = i.pw.toLocaleString("en") + " \u00d7 " + i.ph.toLocaleString("en") + " px = " + (i.W / 96 * 2.54).toFixed(1) + " \u00d7 " + (i.H / 96 * 2.54).toFixed(1) + " cm at " + i.eff + " dpi." +
+    (i.clipped ? " Reduced from " + i.dpi + " dpi: the image would be too large for the browser." : "") + " The size follows the chart on screen; resize the window or zoom to change the layout.";
+}
+const CRCT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRCT[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+async function pngWithDpi(blob, dpi) {                       // add a pHYs chunk so other programs know the resolution
+  const buf = new Uint8Array(await blob.arrayBuffer()), ppm = Math.round(dpi / 0.0254);
+  const chunk = new Uint8Array(21), dv = new DataView(chunk.buffer);
+  dv.setUint32(0, 9); chunk.set([0x70, 0x48, 0x59, 0x73], 4); dv.setUint32(8, ppm); dv.setUint32(12, ppm); chunk[16] = 1;
+  dv.setUint32(17, crc32(chunk.subarray(4, 17)));
+  const out = new Uint8Array(buf.length + 21); out.set(buf.subarray(0, 33)); out.set(chunk, 33); out.set(buf.subarray(33), 54);
+  return new Blob([out], { type: "image/png" });
+}
+async function makeImage() {
+  const i = exportInfo(), fmt = $("fmt").value;
+  const EX = { canvas: document.createElement("canvas"), W: layout.W, dpr: i.s }, keep = ctx;
+  try { drawInner(EX); } finally { ctx = keep; }
+  let blob = await new Promise(res => EX.canvas.toBlob(res, fmt === "png" ? "image/png" : "image/jpeg", 0.95));
+  EX.canvas.width = EX.canvas.height = 1;
+  if (!blob) throw new Error("The browser could not create an image of this size.");
+  if (fmt === "png") blob = await pngWithDpi(blob, i.eff);
+  return { blob, info: i, fmt };
+}
+function fileStem() {
+  const rx = $("rx").value === "*" ? "all" : $("rx").value.toLowerCase(), q = qLabels().join("+").replace(/[^A-Za-z0-9+]/g, "").slice(0, 40) || "allq";
+  return "exfor_nuclide_chart_n-" + rx + "_" + $("metric").value + "_" + q + "_Z" + ival("zmin", 1) + "-" + ival("zmax", 100);
+}
+$("save").onclick = async () => {
+  const msg = $("saved"); msg.textContent = "Rendering\u2026"; $("save").disabled = true;
+  try {
+    const { blob, info, fmt } = await makeImage(), name = fileStem() + "_" + info.eff + "dpi." + fmt;
+    let dl = null; try { dl = await (window.claude && claude.use ? claude.use("downloads") : null); } catch (e) { dl = null; }
+    if (dl) {
+      try { await dl.save({ filename: name, data: blob }); msg.textContent = "Saved " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB)."; }
+      catch (e) { msg.textContent = e && e.code === "declined" ? "Save cancelled." : "Saving was not possible here (" + ((e && e.code) || "error") + "). Use the image below."; if (!(e && e.code === "declined")) showFallback(blob, name); }
+    } else {
+      // an ordinary browser: a download link
+      const url = URL.createObjectURL(blob), a = document.createElement("a");
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      showFallback(blob, name);
+      msg.textContent = "Saved as " + name + " (" + (blob.size / 1048576).toFixed(1) + " MB) in your downloads folder. If nothing was saved, use the image below (right-click or long-press).";
+    }
+  } catch (e) { msg.textContent = "Could not create the image: " + (e.message || e); }
+  $("save").disabled = false;
+};
+let fbUrl = null;
+function showFallback(blob, name) {
+  if (fbUrl) URL.revokeObjectURL(fbUrl);
+  fbUrl = URL.createObjectURL(blob);
+  const f = $("fallback"); f.hidden = false; f.innerHTML = "";
+  const im = new Image(); im.src = fbUrl; im.alt = name; im.style.cssText = "max-width:100%;border:1px solid var(--line);margin-top:8px"; f.appendChild(im);
+}
+for (const id of ["dpi", "fmt"]) $(id).addEventListener("change", updateImgNote);
+new ResizeObserver(() => { if (!$("appview").hidden) { draw(); updateImgNote(); } }).observe(cv.parentElement);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+draw(); updateImgNote();
+</script>
